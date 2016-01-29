@@ -15,6 +15,7 @@ class PageAdmin extends Simpla
 			$page->meta_title = $this->request->post('meta_title');
 			$page->meta_keywords = $this->request->post('meta_keywords');
 			$page->meta_description = $this->request->post('meta_description');
+			$page->article_title = $this->request->post('article_title');
 			$page->body = $this->request->post('body');
 			$page->menu_id = $this->request->post('menu_id', 'integer');
 			$page->visible = $this->request->post('visible', 'boolean');

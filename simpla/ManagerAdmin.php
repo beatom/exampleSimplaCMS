@@ -32,8 +32,15 @@ class ManagerAdmin extends Simpla
 				
 				// Обновляем права только другим менеджерам
 				$current_manager = $this->managers->get_manager();
-				if($manager->old_login != $current_manager->login)
-					$manager->permissions = (array)$this->request->post('permissions');
+				if($manager->old_login != $current_manager->login) {
+
+                    $manager->permissions = (array)$this->request->post('permissions');
+                }
+
+
+//                echo '<pre>';
+//                print_r($manager->permissions);
+//                exit;
 		
 				if(empty($manager->old_login))
 				{

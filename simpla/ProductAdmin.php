@@ -25,6 +25,7 @@ class ProductAdmin extends Simpla
 			$product->visible = $this->request->post('visible', 'boolean');
 			$product->featured = $this->request->post('featured');
 			$product->brand_id = $this->request->post('brand_id', 'integer');
+			$product->shop_id = $this->request->post('shop_id', 'integer');
 
 			$product->url = $this->request->post('url', 'string');
 			$product->meta_title = $this->request->post('meta_title');
@@ -33,6 +34,31 @@ class ProductAdmin extends Simpla
 			
 			$product->annotation = $this->request->post('annotation');
 			$product->body = $this->request->post('body');
+            
+            /*star-rating*/
+            $product->rating = $this->request->post('rating', 'float');
+            $product->votes = $this->request->post('votes', 'int');
+            /*/star-rating*/
+
+			// Цвета товара
+            $product_colors = array();
+			if($this->request->post('colors'))
+			foreach($this->request->post('colors') as $n => $co)
+			{
+                $c = new stdClass;
+                $c->id = $co;
+                $product_colors[] = $c;
+            }
+
+			// Размераы товара
+            $product_sizes = array();
+			if($this->request->post('sizes'))
+			foreach($this->request->post('sizes') as $n => $si)
+			{
+                $s = new stdClass;
+                $s->id = $si;
+                $product_sizes[] = $s;
+            }
 
 			// Варианты товара
 			if($this->request->post('variants'))
@@ -115,6 +141,48 @@ class ProductAdmin extends Simpla
    	    		
    	    		if($product->id)
    	    		{
+	   	    		// Цвета товара
+                    if(is_array($product_colors))
+                    {
+                        $new_colors = array();
+
+                        // Добаляем цвета
+                        foreach ($product_colors as $i => $color) {
+                            $new_colors[] = $color->id;
+                            $this->products->add_product_color($product->id, $color->id, $i);
+                        }
+
+                        if (empty($new_colors)) {
+                            $new_colors[] = 0;
+                        }
+
+                        // Удалить старые цвета
+                        if (!empty($new_colors)) {
+                            $this->products->delete_old_product_colors($product->id, $new_colors);
+                        }
+                    }
+
+                    // Размеры товара
+                    if(is_array($product_sizes))
+                    {
+                        $new_sizes = array();
+
+                        // Добаляем размеры
+                        foreach ($product_sizes as $i => $size) {
+                            $new_sizes[] = $size->id;
+                            $this->products->add_product_size($product->id, $size->id, $i);
+                        }
+
+                        if (empty($new_sizes)) {
+                            $new_sizes[] = 0;
+                        }
+
+                        // Удалить старые размеры
+                        if (!empty($new_sizes)) {
+                            $this->products->delete_old_product_sizes($product->id, $new_sizes);
+                        }
+                    }
+
 	   	    		// Категории товара
 	   	    		$query = $this->db->placehold('DELETE FROM __products_categories WHERE product_id=?', $product->id);
 	   	    		$this->db->query($query);
@@ -147,6 +215,12 @@ class ProductAdmin extends Simpla
 		 						move_uploaded_file($attachment_tmp_name, $this->config->root_dir.'/'.$this->config->downloads_dir.$attachment_name);
 		 						$variant->attachment = $attachment_name;
 		 					}
+
+                            // Ставим  метку распродажи
+                            if (!empty($variant->compare_price) && !empty($variant->price)) {
+
+                                $variant = $this->variants->processVariant($variant);
+                            }
 	
 							if(!empty($variant->id))
 								$this->variants->update_variant($variant->id, $variant);
@@ -158,6 +232,7 @@ class ProductAdmin extends Simpla
 							$variant = $this->variants->get_variant($variant->id);
 							if(!empty($variant->id))
 					 			$variants_ids[] = $variant->id;
+
 						}
 						
 	
@@ -357,9 +432,28 @@ class ProductAdmin extends Simpla
 				$temp_options[$option->feature_id] = $option;
 			$options = $temp_options;
 		}
-			
 
-		$this->design->assign('product', $product);
+        $product_colors = array();
+        foreach ($this->products->get_product_colors($product->id) as $color) {
+
+            $product_colors[] = $color->color_id;
+        }
+        $this->design->assign('product_colors', $product_colors);
+
+        $product_sizes = array();
+        foreach ($this->products->get_product_sizes($product->id) as $size) {
+
+            $product_sizes[] = $size->size_id;
+        }
+        $this->design->assign('product_sizes', $product_sizes);
+
+        $colors = $this->colors->get_colors();
+        $this->design->assign('colors', $colors);
+
+        $sizes = $this->sizes->get_sizes();
+        $this->design->assign('sizes', $sizes);
+
+        $this->design->assign('product', $product);
 
 		$this->design->assign('product_categories', $product_categories);
 		$this->design->assign('product_variants', $variants);
@@ -367,6 +461,10 @@ class ProductAdmin extends Simpla
 		$this->design->assign('options', $options);
 		$this->design->assign('related_products', $related_products);		
 		
+		// Все магазины
+		$shops = $this->shop->get_shops();
+		$this->design->assign('shops', $shops);
+
 		// Все бренды
 		$brands = $this->brands->get_brands();
 		$this->design->assign('brands', $brands);

@@ -24,12 +24,52 @@ switch ($object)
         $result = $simpla->products->update_product($id, $values);
         break;
     case 'category':
-    	if($simpla->managers->access('categories'))
-        $result = $simpla->categories->update_category($id, $values);
+
+        if ($simpla->managers->can('categories', 'edit')) {
+
+            if ($simpla->managers->access('categories')) {
+
+                $result = $simpla->categories->update_category($id, $values);
+
+                $simpla->log->add_log($values, 's_categories', $id, $simpla->managers->get_manager()->login);
+            }
+        } else {
+
+            return false;
+        }
+
+        break;
+    case 'size':
+
+        if ($simpla->managers->access('sizes')) {
+
+            $result = $simpla->sizes->update_size($id, $values);
+            $simpla->log->add_log($values, 's_sizes', $id, $simpla->managers->get_manager()->login);
+        }
+        break;
+    case 'color':
+
+        if ($simpla->managers->access('colors')) {
+
+            $result = $simpla->colors->update_color($id, $values);
+            $simpla->log->add_log($values, 's_colors', $id, $simpla->managers->get_manager()->login);
+        }
         break;
     case 'brands':
-    	if($simpla->managers->access('brands'))
-        $result = $simpla->brands->update_brand($id, $values);
+
+        if ($simpla->managers->can('brands', 'edit')) {
+
+            if($simpla->managers->access('brands')) {
+
+                $result = $simpla->brands->update_brand($id, $values);
+                $this->log->add_log($values, 's_brands', $id, $simpla->managers->get_manager()->login);
+            }
+
+        } else {
+
+            return false;
+        }
+
         break;
     case 'feature':
     	if($simpla->managers->access('features'))
@@ -62,6 +102,10 @@ switch ($object)
     case 'user':
     	if($simpla->managers->access('users'))
         $result = $simpla->users->update_user($id, $values);
+        break;
+    case 'subscriber':
+    	if($simpla->managers->access('subscribe'))
+        $result = $simpla->subscription->update_subscriber($id, $values);
         break;
     case 'label':
     	if($simpla->managers->access('labels'))
