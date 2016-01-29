@@ -12,12 +12,19 @@
 require_once('Simpla.php');
 
 class Managers extends Simpla
-{	
-	public $permissions_list = array('products', 'categories', 'brands', 'features', 'orders', 'labels',
-		'users', 'groups', 'coupons', 'pages', 'blog', 'comments', 'feedbacks', 'import', 'export',
-		'backup', 'stats', 'design', 'settings', 'currency', 'delivery', 'payment', 'managers', 'license');
-		
-	public $passwd_file = "simpla/.passwd";
+{
+    public $permissions_list = [
+        'products',
+        'categories', 'categories_insert','categories_edit','categories_delete',
+        'brands',  'brands_insert','brands_edit','brands_delete',
+        'shop', 'features', 'colors', 'sizes', 'orders', 'labels',
+        'users', 'groups', 'coupons', 'subscribe', 'pages', 'blog', 'comments', 'feedbacks', 'import', 'export',
+        'backup', 'stats', 'design', 'settings', 'currency', 'delivery', 'payment', 'managers', 'license', 'logs',
+        'cache',
+        'cron',
+    ];
+
+    public $passwd_file = "simpla/.passwd";
 
 	public function __construct()
 	{
@@ -35,7 +42,7 @@ class Managers extends Simpla
 	public function get_managers()
 	{
 		$lines = explode("\n", @file_get_contents(dirname(dirname(__FILE__)).'/'.$this->passwd_file));
-		$managers = array();
+		$managers = [];
 		foreach($lines as $line)
 		{
 			if(!empty($line))
@@ -44,7 +51,7 @@ class Managers extends Simpla
 				$fields = explode(":", $line);
 				$manager = new stdClass();
 				$manager->login = trim($fields[0]);
-				$manager->permissions = array();
+				$manager->permissions = [];
 				if(isset($fields[2]))
 				{
 					$manager->permissions = explode(",", $fields[2]);
@@ -60,7 +67,7 @@ class Managers extends Simpla
 		return $managers;
 	}
 		
-	public function count_managers($filter = array())
+	public function count_managers($filter = [])
 	{
 		return count($this->get_managers());
 	}
@@ -68,26 +75,72 @@ class Managers extends Simpla
 	public function get_manager($login = null)
 	{
 		// Если не запрашивается по логину, отдаём текущего менеджера или false
-		if(empty($login))
-			if(!empty($_SERVER['PHP_AUTH_USER']))
-				$login = $_SERVER['PHP_AUTH_USER'];
-			else
-			{
-				// Тестовый менеджер, если отключена авторизация
-				$m = new stdClass();
-				$m->login = 'manager';
-				$m->permissions = $this->permissions_list;
-				return $m;
-			}
-				
-		foreach($this->get_managers() as $manager)
-		{
-			if($manager->login == $login)
-				return $manager;
-		}		
+		if(empty($login)) {
+
+            if(!empty($_SERVER['PHP_AUTH_USER'])) {
+
+                $login = $_SERVER['PHP_AUTH_USER'];
+
+            } else {
+
+                // Тестовый менеджер, если отключена авторизация
+                $m = new stdClass();
+                $m->login = 'manager';
+                $m->permissions = $this->permissions_list;
+                return $m;
+            }
+        }
+
+		foreach($this->get_managers() as $manager) {
+
+			if($manager->login == $login) {
+
+                return $manager;
+            }
+        }
 		return false;	
 	}
-	
+
+    public function can($section, $action = NULL)
+    {
+        $actions = [
+            'insert',
+            'edit',
+            'delete'
+        ];
+
+        $manager = $this->get_manager();
+
+        if (!in_array($section, $manager->permissions)) {
+
+            return FALSE;
+        }
+
+        $is_admin = TRUE;
+        foreach ($actions as $a) {
+
+            if ($action === $a) {
+
+                if (in_array($section . '_' . $action, $manager->permissions)) {
+
+                    return TRUE;
+                }
+            }
+
+            if (in_array($section . '_' . $a, $manager->permissions)) {
+
+                $is_admin = FALSE;
+            }
+        }
+
+        if ($is_admin) {
+
+            return TRUE;
+        }
+
+        return FALSE;
+    }
+
 	public function add_manager($manager)
 	{
 		$manager = (object)$manager;

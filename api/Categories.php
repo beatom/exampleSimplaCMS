@@ -17,27 +17,90 @@ class Categories extends Simpla
 	private $all_categories;
 	// Дерево категорий
 	private $categories_tree;
+    // Количество всех видимых категорий
+	private $count_categories = 0;
+
+
+	/**
+	 * @param mixed $all_categories
+	 */
+	public function setAllCategories($all_categories)
+	{
+		$this->all_categories = $all_categories;
+
+		return $this;
+	}
+
+    /**
+     * @return int
+     */
+    public function get_count_categories()
+    {
+        return $this->count_categories;
+    }
+
+	public function category_build($item, $row) {
+
+		if (!empty($item->parent_id) && !empty($row[$item->parent_id])
+			&& is_object($row[$item->parent_id])
+		) {
+
+			$item->name = $row[$item->parent_id]->name . '/' . $item->name;
+			$item->parent_id = $row[$item->parent_id]->parent_id;
+
+			return $this->category_build($item, $row);
+		}
+
+		return $item;
+	}
 
 	// Функция возвращает массив категорий
-	public function get_categories($filter = array())
+	public function get_all_categories()
+	{
+		$query = $this->db->placehold("SELECT
+											id,
+											parent_id,
+											name
+ 										FROM __categories");
+		$this->db->query($query);
+//		return $this->db->results();
+		$all = $this->db->results();
+
+		$categories = [];
+		foreach ($all as $k => $v) {
+
+			$categories[$v->id] = $v;
+		}
+
+		$res = [];
+		foreach ($categories as $k => $v) {
+
+			$res[$v->id] = $this->category_build($v, $categories);
+		}
+
+		return $res;
+	}
+
+	// Функция возвращает массив категорий
+	public function get_categories($filter = [])
 	{
 		if(!isset($this->categories_tree))
 			$this->init_categories();
- 
+
 		if(!empty($filter['product_id']))
 		{
 			$query = $this->db->placehold("SELECT category_id FROM __products_categories WHERE product_id in(?@) ORDER BY position", (array)$filter['product_id']);
 			$this->db->query($query);
 			$categories_ids = $this->db->results('category_id');
-			$result = array();
+			$result = [];
 			foreach($categories_ids as $id)
 				if(isset($this->all_categories[$id]))
 					$result[$id] = $this->all_categories[$id];
 			return $result;
 		}
-		
+
 		return $this->all_categories;
-	}	
+	}
 
 	// Функция возвращает id категорий для заданного товара
 	public function get_product_categories($product_id)
@@ -56,10 +119,10 @@ class Categories extends Simpla
 	}	
 
 	// Функция возвращает дерево категорий
-	public function get_categories_tree()
+	public function get_categories_tree($filter = [])
 	{
 		if(!isset($this->categories_tree))
-			$this->init_categories();
+			$this->init_categories($filter);
 			
 		return $this->categories_tree;
 	}
@@ -67,14 +130,23 @@ class Categories extends Simpla
 	// Функция возвращает заданную категорию
 	public function get_category($id)
 	{
-		if(!isset($this->all_categories))
+		if(!isset($this->all_categories)) {
 			$this->init_categories();
-		if(is_int($id) && array_key_exists(intval($id), $this->all_categories))
+		}
+
+		if(is_int($id) && array_key_exists(intval($id), $this->all_categories)) {
+
 			return $category = $this->all_categories[intval($id)];
-		elseif(is_string($id))
-			foreach ($this->all_categories as $category)
-				if ($category->url == $id)
-					return $this->get_category((int)$category->id);	
+		} elseif (is_string($id)) {
+
+			foreach ($this->all_categories as $category) {
+
+				if ($category->url == $id) {
+
+					return $this->get_category((int)$category->id);
+				}
+			}
+		}
 		
 		return false;
 	}
@@ -85,7 +157,8 @@ class Categories extends Simpla
 		$category = (array)$category;
 		if(empty($category['url']))
 		{
-			$category['url'] = preg_replace("/[\s]+/ui", '_', $category['name']);
+			$name = $this->translit($category['name']);
+			$category['url'] = preg_replace("/[\s]+/ui", '_', $name);
 			$category['url'] = strtolower(preg_replace("/[^0-9a-zа-я_]+/ui", '', $category['url']));
 		}	
 
@@ -179,29 +252,62 @@ class Categories extends Simpla
 
 
 	// Инициализация категорий, после которой категории будем выбирать из локальной переменной
-	private function init_categories()
+	public function init_categories($filter = [])
 	{
 		// Дерево категорий
 		$tree = new stdClass();
-		$tree->subcategories = array();
+		$tree->subcategories = [];
 		
 		// Указатели на узлы дерева
-		$pointers = array();
+		$pointers = [];
 		$pointers[0] = &$tree;
-		$pointers[0]->path = array();
+		$pointers[0]->path = [];
 		$pointers[0]->level = 0;
-		
+
+        $count_categories = 0;
+
+		$group_by         = '';
+		$not_empty_filter = '';
+		if (!empty($filter['not_empty'])) {
+
+			$not_empty_filter = $this->db->placehold('AND (not_empty > 0 OR IFNULL(cc_parent_id,0) = 0)');
+			$group_by         = $this->db->placehold('GROUP BY c.id');
+		}
+
+		$visible_filter = '';
+		if (!empty($filter['visible'])) {
+
+			$visible_filter = $this->db->placehold('AND c.visible = 1');
+		}
+
 		// Выбираем все категории
-		$query = $this->db->placehold("SELECT c.id, c.parent_id, c.name, c.description, c.url, c.meta_title, c.meta_keywords, c.meta_description, c.image, c.visible, c.position
-										FROM __categories c ORDER BY c.parent_id, c.position");
+		$query = $this->db->placehold("SELECT
+											c.id, c.parent_id, c.name, c.article_title, c.description, c.url, c.meta_title, c.meta_keywords, c.meta_description, c.image, c.visible, c.position,
+											cc.parent_id cc_parent_id,
+											ccc.parent_id ccc_parent_id,
+											(SELECT 1 FROM s_products p WHERE p.id=pc.product_id LIMIT 1) as not_empty
+										FROM __categories c
+										LEFT JOIN __categories cc ON cc.id = c.parent_id
+										LEFT JOIN __categories ccc ON ccc.id = cc.parent_id
+										LEFT JOIN __products_categories pc ON pc.category_id = c.id
+										WHERE 1 $visible_filter
+										GROUP BY c.id HAVING 1 $not_empty_filter  ORDER BY c.parent_id, c.position");
 											
 		// Выбор категорий с подсчетом количества товаров для каждой. Может тормозить при большом количестве товаров.
 		// $query = $this->db->placehold("SELECT c.id, c.parent_id, c.name, c.description, c.url, c.meta_title, c.meta_keywords, c.meta_description, c.image, c.visible, c.position, COUNT(p.id) as products_count
 		//                               FROM __categories c LEFT JOIN __products_categories pc ON pc.category_id=c.id LEFT JOIN __products p ON p.id=pc.product_id AND p.visible GROUP BY c.id ORDER BY c.parent_id, c.position");
 		
-		
+
+//		echo $query;
 		$this->db->query($query);
 		$categories = $this->db->results();
+//		echo '<pre>';
+//		print_r(count($categories));
+//		echo '<pre>';
+//		echo '<pre>';
+//		print_r($categories);
+//		echo '<pre>';
+//		exit;
 				
 		$finish = false;
 		// Не кончаем, пока не кончатся категории, или пока ниодну из оставшихся некуда приткнуть
@@ -218,7 +324,7 @@ class Categories extends Simpla
 					
 					// Путь к текущей категории
 					$curr = $pointers[$category->id];
-					$pointers[$category->id]->path = array_merge((array)$pointers[$category->parent_id]->path, array($curr));
+					$pointers[$category->id]->path = array_merge((array)$pointers[$category->parent_id]->path, [$curr]);
 					
 					// Уровень вложенности категории
 					$pointers[$category->id]->level = 1+$pointers[$category->parent_id]->level;
@@ -227,6 +333,10 @@ class Categories extends Simpla
 					unset($categories[$k]);
 					$flag = true;
 				}
+
+                if ($category->visible) {
+                    $this->count_categories++;
+                }
 			}
 			if(!$flag) $finish = true;
 		}
@@ -243,6 +353,11 @@ class Categories extends Simpla
 					$pointers[$pointers[$id]->parent_id]->children = array_merge($pointers[$id]->children, $pointers[$pointers[$id]->parent_id]->children);
 				else
 					$pointers[$pointers[$id]->parent_id]->children = $pointers[$id]->children;
+
+//              Дописать
+//                if(isset($pointers[$pointers[$id]->parent_id]) && $pointers[$id]->visible) {
+//                    $pointers[$pointers[$id]->parent_id]->count_children += $pointers[$id]->count_children + 1;
+//                }
 					
 				// Добавляем количество товаров к родительской категории, если текущая видима
 				// if(isset($pointers[$pointers[$id]->parent_id]) && $pointers[$id]->visible)
@@ -252,7 +367,23 @@ class Categories extends Simpla
 		unset($pointers[0]);
 		unset($ids);
 
+//        echo '<pre>';
+//        print_r($tree->subcategories);
+//        exit;
+
 		$this->categories_tree = $tree->subcategories;
 		$this->all_categories = $pointers;	
+	}
+
+	private function translit($text)
+	{
+		$ru = explode('-', "А-а-Б-б-В-в-Ґ-ґ-Г-г-Д-д-Е-е-Ё-ё-Є-є-Ж-ж-З-з-И-и-І-і-Ї-ї-Й-й-К-к-Л-л-М-м-Н-н-О-о-П-п-Р-р-С-с-Т-т-У-у-Ф-ф-Х-х-Ц-ц-Ч-ч-Ш-ш-Щ-щ-Ъ-ъ-Ы-ы-Ь-ь-Э-э-Ю-ю-Я-я");
+		$en = explode('-', "A-a-B-b-V-v-G-g-G-g-D-d-E-e-E-e-E-e-ZH-zh-Z-z-I-i-I-i-I-i-J-j-K-k-L-l-M-m-N-n-O-o-P-p-R-r-S-s-T-t-U-u-F-f-H-h-TS-ts-CH-ch-SH-sh-SCH-sch---Y-y---E-e-YU-yu-YA-ya");
+
+		$res = str_replace($ru, $en, $text);
+		$res = preg_replace("/[\s]+/ui", '-', $res);
+		$res = preg_replace('/[^\p{L}\p{Nd}\d-]/ui', '', $res);
+		$res = strtolower($res);
+		return $res;
 	}
 }

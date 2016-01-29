@@ -150,7 +150,7 @@ class Request extends Simpla
 	/**
 	* URL
 	*/
-    public function url($params = array())
+    public function url($params = [])
     {
 		$url = @parse_url($_SERVER["REQUEST_URI"]);
 		parse_str($url['query'], $query);
@@ -178,6 +178,149 @@ class Request extends Simpla
 		$result = http_build_url(null, $url);
 		return $result;
     }
+
+	/**
+     * URL
+     */
+    public function url_empty($params = [])
+    {
+        $url = @parse_url($_SERVER["REQUEST_URI"]);
+        parse_str($url['query'], $query);
+
+        if (get_magic_quotes_gpc()) {
+
+            foreach ($query as &$v) {
+
+                if (!is_array($v)) {
+
+                    $v = stripslashes(urldecode($v));
+                }
+            }
+        }
+
+        foreach ($params as $name => $value) {
+
+            $query[$name] = $value;
+        }
+
+        $query = array_diff($query, ['']);
+        ksort($query);
+
+        foreach ($query as &$q) {
+            if (is_array($q)) {
+
+                $q = array_diff($q, ['', 0]);
+                ksort($q);
+            }
+        }
+
+        $query_is_empty = TRUE;
+        foreach ($query as $name => $value) {
+
+            if ($value != '' && $value != NULL) {
+
+                $query_is_empty = FALSE;
+            }
+        }
+
+        if (!$query_is_empty) {
+
+            $url['query'] = http_build_query($query);
+        } else {
+
+            $url['query'] = NULL;
+        }
+
+        $result = http_build_url(NULL, $url);
+
+        return $result;
+    }
+
+    /**
+     * URL (убираем все пустые и нулевые параметры get)
+     */
+    public function url_empty_all($params = [])
+    {
+        $url = @parse_url($_SERVER["REQUEST_URI"]);
+        parse_str($url['query'], $query);
+
+        if (get_magic_quotes_gpc()) {
+
+            foreach ($query as &$v) {
+
+                if (!is_array($v)) {
+
+                    $v = stripslashes(urldecode($v));
+                }
+            }
+        }
+
+        foreach ($params as $name => $value) {
+
+            $query[$name] = $value;
+        }
+
+//        $query = array_diff($query, ['', 0]);
+        $query = $this->arrayRecursiveDiff($query, [(string)'',(string)0]);
+
+        ksort($query);
+
+        foreach ($query as $k => &$q) {
+
+            if (is_array($q)) {
+
+                $q = array_diff($q, ['', 0]);
+                ksort($q);
+            } else {
+
+                if (in_array($k, ['category', 'brand', 'new', 'browsed', 'sale']) || (string)$this->config->{$k} === (string)$q) {
+
+                    unset($query[$k]);
+                }
+            }
+        }
+
+        $query_is_empty = TRUE;
+        foreach ($query as $name => $value) {
+
+            if ($value != '' && $value != NULL) {
+
+                $query_is_empty = FALSE;
+            }
+        }
+
+        if (!$query_is_empty) {
+
+            $url['query'] = http_build_query($query);
+        } else {
+
+            $url['query'] = NULL;
+        }
+
+        $result = http_build_url(NULL, $url);
+
+        return $result;
+    }
+
+	public function arrayRecursiveDiff($aArray1, $aArray2)
+	{
+		$aReturn = [];
+
+		foreach ($aArray1 as $mKey => $mValue) {
+			if (is_array($mValue)) {
+				$aRecursiveDiff = $this->arrayRecursiveDiff($mValue, $aArray2);
+				if (count($aRecursiveDiff)) {
+					$aReturn[$mKey] = $aRecursiveDiff;
+				}
+			} else {
+				if (!in_array((string)$mValue, $aArray2)) {
+					$aReturn[$mKey] = $mValue;
+				}
+			}
+		}
+
+		return $aReturn;
+	}
 }
 
 

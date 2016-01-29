@@ -13,7 +13,7 @@ require_once('Simpla.php');
 
 class Image extends Simpla
 {
-	private	$allowed_extentions = array('png', 'gif', 'jpg', 'jpeg', 'ico');
+	private	$allowed_extentions = ['png', 'gif', 'jpg', 'jpeg', 'ico'];
 
 	public function __construct()
 	{		
@@ -32,7 +32,7 @@ class Image extends Simpla
 	{
 		list($source_file, $width , $height, $set_watermark) = $this->get_resize_params($filename);
 
-		// Если вайл удаленный (http://), зальем его себе
+		// Если файл удаленный (http://), зальем его себе
 		if(substr($source_file, 0, 7) == 'http://')
 		{	
 			// Имя оригинального файла
@@ -66,10 +66,149 @@ class Image extends Simpla
 			$watermark = null;
 
 		if(class_exists('Imagick') && $this->config->use_imagick)
+			$this->image_constrain_imagick($originals_dir.$this->get_original_images_sub_dir($original_file).$original_file, $preview_dir.$this->get_resized_images_sub_dir($resized_file).$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency, $sharpen);
+		else
+			$this->image_constrain_gd($originals_dir.$this->get_original_images_sub_dir($original_file).$original_file, $preview_dir.$this->get_resized_images_sub_dir($resized_file).$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency);
+		
+		return $preview_dir.$this->get_resized_images_sub_dir($resized_file).$resized_file;
+	}
+
+
+	function resize_avatar($filename)
+	{
+
+		list($source_file, $width , $height, $set_watermark) = $this->get_resize_params($filename);
+
+		// Если вайл удаленный (http://), зальем его себе
+		if(substr($source_file, 0, 7) == 'http://')
+		{
+			// Имя оригинального файла
+			if(!$original_file = $this->download_image($source_file))
+				return false;
+
+			$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+		}
+		else
+		{
+			$original_file = $source_file;
+		}
+
+		$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+
+
+		// Пути к папкам с картинками
+		$originals_dir = $this->config->root_dir.$this->config->avatar_dir;
+		$preview_dir = $this->config->root_dir.$this->config->avatar_resized;
+
+		$watermark_offet_x = $this->settings->watermark_offset_x;
+		$watermark_offet_y = $this->settings->watermark_offset_y;
+
+		$sharpen = min(100, $this->settings->images_sharpen)/100;
+		$watermark_transparency =  1-min(100, $this->settings->watermark_transparency)/100;
+
+
+		if($set_watermark && is_file($this->config->root_dir.$this->config->watermark_file))
+			$watermark = $this->config->root_dir.$this->config->watermark_file;
+		else
+			$watermark = null;
+
+		if(class_exists('Imagick') && $this->config->use_imagick)
 			$this->image_constrain_imagick($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency, $sharpen);
 		else
 			$this->image_constrain_gd($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency);
-		
+
+		return $preview_dir.$resized_file;
+	}
+
+    function resize_shop($filename)
+	{
+
+		list($source_file, $width , $height, $set_watermark) = $this->get_resize_params($filename);
+
+		// Если вайл удаленный (http://), зальем его себе
+		if(substr($source_file, 0, 7) == 'http://')
+		{
+			// Имя оригинального файла
+			if(!$original_file = $this->download_image($source_file))
+				return false;
+
+			$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+		}
+		else
+		{
+			$original_file = $source_file;
+		}
+
+		$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+
+
+		// Пути к папкам с картинками
+		$originals_dir = $this->config->root_dir.$this->config->shop_images_dir;
+		$preview_dir = $this->config->root_dir.$this->config->shop_resized_images_dir;
+
+		$watermark_offet_x = $this->settings->watermark_offset_x;
+		$watermark_offet_y = $this->settings->watermark_offset_y;
+
+		$sharpen = min(100, $this->settings->images_sharpen)/100;
+		$watermark_transparency =  1-min(100, $this->settings->watermark_transparency)/100;
+
+
+		if($set_watermark && is_file($this->config->root_dir.$this->config->watermark_file))
+			$watermark = $this->config->root_dir.$this->config->watermark_file;
+		else
+			$watermark = null;
+
+		if(class_exists('Imagick') && $this->config->use_imagick)
+			$this->image_constrain_imagick($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency, $sharpen);
+		else
+			$this->image_constrain_gd($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency);
+
+		return $preview_dir.$resized_file;
+	}
+
+    function resize_color($filename)
+	{
+
+		list($source_file, $width , $height, $set_watermark) = $this->get_resize_params($filename);
+
+		// Если вайл удаленный (http://), зальем его себе
+		if(substr($source_file, 0, 7) == 'http://')
+		{
+			// Имя оригинального файла
+			if(!$original_file = $this->download_image($source_file))
+				return false;
+
+			$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+		}
+		else
+		{
+			$original_file = $source_file;
+		}
+
+		$resized_file = $this->add_resize_params($original_file, $width, $height, $set_watermark);
+
+
+		// Пути к папкам с картинками
+		$originals_dir = $this->config->root_dir.$this->config->color_images_dir;
+		$preview_dir = $this->config->root_dir.$this->config->color_resized_images_dir;
+
+		$watermark_offet_x = $this->settings->watermark_offset_x;
+		$watermark_offet_y = $this->settings->watermark_offset_y;
+
+		$sharpen = min(100, $this->settings->images_sharpen)/100;
+		$watermark_transparency =  1-min(100, $this->settings->watermark_transparency)/100;
+
+
+		if($set_watermark && is_file($this->config->root_dir.$this->config->watermark_file))
+			$watermark = $this->config->root_dir.$this->config->watermark_file;
+		else
+			$watermark = null;
+
+		if(class_exists('Imagick') && $this->config->use_imagick)
+			$this->image_constrain_imagick($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency, $sharpen);
+		else
+			$this->image_constrain_gd($originals_dir.$original_file, $preview_dir.$resized_file, $width, $height, $watermark, $watermark_offet_x, $watermark_offet_y, $watermark_transparency);
+
 		return $preview_dir.$resized_file;
 	}
 
@@ -101,7 +240,7 @@ class Image extends Simpla
 		$set_watermark = $matches[4] == 'w';	// ставить ли водяной знак
 		$ext = $matches[5];						// расширение файла
 			
-		return array($file.'.'.$ext, $width, $height, $set_watermark);
+		return [$file.'.'.$ext, $width, $height, $set_watermark];
 	}
 	
 	
@@ -121,7 +260,7 @@ class Image extends Simpla
 		// Если такой файл существует, нужно придумать другое название
 		$new_name = urldecode($uploaded_file);
 			
-		while(file_exists($this->config->root_dir.$this->config->original_images_dir.$new_name))
+		while(file_exists($this->config->root_dir.$this->config->original_images_dir.$this->get_original_images_sub_dir($new_name).$new_name))
 		{
 			$new_base = pathinfo($new_name, PATHINFO_FILENAME);
 			if(preg_match('/_([0-9]+)$/', $new_base, $parts))
@@ -132,8 +271,8 @@ class Image extends Simpla
 		$this->db->query('UPDATE __images SET filename=? WHERE filename=?', $new_name, $filename);
 		
 		// Перед долгим копированием займем это имя
-		fclose(fopen($this->config->root_dir.$this->config->original_images_dir.$new_name, 'w'));
-		copy($filename, $this->config->root_dir.$this->config->original_images_dir.$new_name);
+		fclose(fopen($this->config->root_dir.$this->config->original_images_dir.$this->get_original_images_sub_dir($new_name).$new_name, 'w'));
+		copy($filename, $this->config->root_dir.$this->config->original_images_dir.$this->get_original_images_sub_dir($new_name).$new_name);
 		return $new_name;
 	}
 
@@ -147,7 +286,7 @@ class Image extends Simpla
 		
 		if(in_array(strtolower($ext), $this->allowed_extentions))
 		{			
-			while(file_exists($this->config->root_dir.$this->config->original_images_dir.$new_name))
+			while(file_exists($this->config->root_dir.$this->config->original_images_dir.$this->get_original_images_sub_dir($new_name).$new_name))
 			{	
 				$new_base = pathinfo($new_name, PATHINFO_FILENAME);
 				if(preg_match('/_([0-9]+)$/', $new_base, $parts))
@@ -155,7 +294,33 @@ class Image extends Simpla
 				else
 					$new_name = $base.'_1.'.$ext;
 			}
-			if(move_uploaded_file($filename, $this->config->root_dir.$this->config->original_images_dir.$new_name))			
+			if(move_uploaded_file($filename, $this->config->root_dir.$this->config->original_images_dir.$this->get_original_images_sub_dir($new_name).$new_name))
+				return $new_name;
+		}
+
+		return false;
+	}
+
+    // Загрузка аватара
+	public function upload_avatar($filename, $name)
+	{
+		// Имя оригинального файла
+		$name = $this->correct_filename($name);
+		$uploaded_file = $new_name = pathinfo($name, PATHINFO_BASENAME);
+		$base = pathinfo($uploaded_file, PATHINFO_FILENAME);
+		$ext = pathinfo($uploaded_file, PATHINFO_EXTENSION);
+
+		if(in_array(strtolower($ext), $this->allowed_extentions))
+		{
+			while(file_exists($this->config->root_dir.$this->config->avatar_dir.$new_name))
+			{
+				$new_base = pathinfo($new_name, PATHINFO_FILENAME);
+				if(preg_match('/_([0-9]+)$/', $new_base, $parts))
+					$new_name = $base.'_'.($parts[1]+1).'.'.$ext;
+				else
+					$new_name = $base.'_1.'.$ext;
+			}
+			if(move_uploaded_file($filename, $this->config->root_dir.$this->config->avatar_dir.$new_name))
 				return $new_name;
 		}
 
@@ -416,7 +581,7 @@ class Image extends Simpla
 			$dst_w = $dst_w * ($max_h/$dst_h);
 			$dst_h = $max_h;
 		}
-		return array($dst_w, $dst_h);
+		return [$dst_w, $dst_h];
 	}	
 	
 	
@@ -458,5 +623,140 @@ class Image extends Simpla
 	 	$res = strtolower($res);
 	    return $res;  
 	}
-	
+
+	public function get_original_images_sub_dir($filename, $find_file = TRUE, $sub = 3)
+	{
+
+		$iter = 0;
+		$sub_pach = '';
+		while(TRUE) {
+
+			if ($iter++ == $sub || $sub <= 0) {
+
+				break;
+			}
+
+			$first_simbol = mb_substr($filename, $iter - 1, 1, "UTF-8");
+
+			if (ctype_alpha($first_simbol) || is_numeric($first_simbol)) {
+
+
+				$sub_pach .= $first_simbol . '/';
+			}
+
+			// Костыль - если вдруг картинку не перенесло
+			if ($find_file && is_file($this->config->root_dir . $this->config->original_images_dir . $sub_pach . $filename)) {
+
+//				file_put_contents('/home/ivagen/www/moda.local/public/test.txt', $this->config->root_dir . $this->config->original_images_dir . $sub_pach . $filename . "\n", FILE_APPEND);
+
+				break;
+			}
+		}
+
+		$fool_pach = $this->config->root_dir . $this->config->original_images_dir . $sub_pach;
+
+		try {
+
+			if (!is_dir($fool_pach) || !is_writable($fool_pach)) {
+
+				@mkdir($fool_pach, 0775, TRUE);
+			}
+		} catch (\Exception $e) {
+
+			echo $e->getMessage() . " (" . $e->getFile() . ", " . $e->getLine() . ")\n";
+		}
+
+		return $sub_pach;
+
+
+		$subdir = '';
+		if (ctype_alpha($first_simbol) || is_numeric($first_simbol)) {
+
+			$fool_pach = $this->config->root_dir . $this->config->original_images_dir . $first_simbol;
+
+			try {
+
+				if (!is_dir($fool_pach) || !is_writable($fool_pach)) {
+					mkdir($fool_pach, 0775, TRUE);
+				}
+
+			} catch (\Exception $e) {
+
+				echo $e->getMessage() . " (" . $e->getFile() . ", " . $e->getLine() . ")\n";
+			}
+
+			$subdir = $first_simbol . '/';
+		}
+
+		return $subdir;
+	}
+
+	public function get_resized_images_sub_dir($filename, $find_file = TRUE, $sub = 3)
+	{
+		$iter = 0;
+		$sub_pach = '';
+		while(TRUE) {
+
+			if ($iter++ == $sub || $sub <= 0) {
+
+				break;
+			}
+
+			$first_simbol = mb_substr($filename, $iter - 1, 1, "UTF-8");
+
+			if (ctype_alpha($first_simbol) || is_numeric($first_simbol)) {
+
+
+				$sub_pach .= $first_simbol . '/';
+			}
+
+			// Костыль - если вдруг картинку не перенесло
+			if ($find_file && is_file($this->config->root_dir . $this->config->resized_images_dir . $sub_pach . $filename)) {
+
+//				file_put_contents('/home/ivagen/www/moda.local/public/test.txt', $this->config->root_dir . $this->config->resized_images_dir . $sub_pach . $filename . "\n", FILE_APPEND);
+
+				break;
+			}
+		}
+
+		$fool_pach = $this->config->root_dir . $this->config->resized_images_dir . $sub_pach;
+
+		try {
+
+			if (!is_dir($fool_pach) || !is_writable($fool_pach)) {
+
+				@mkdir($fool_pach, 0775, TRUE);
+			}
+		} catch (\Exception $e) {
+
+			echo $e->getMessage() . " (" . $e->getFile() . ", " . $e->getLine() . ")\n";
+		}
+
+		return $sub_pach;
+
+
+		$first_simbol = mb_substr($filename, 0, 1, "UTF-8");
+
+		$subdir = '';
+		if (ctype_alpha($first_simbol) || is_numeric($first_simbol)) {
+
+			$fool_pach = $this->config->root_dir . $this->config->resized_images_dir . $first_simbol;
+
+			try {
+
+				if (!is_dir($fool_pach) || !is_writable($fool_pach)) {
+					mkdir($fool_pach, 0775, TRUE);
+				}
+
+			} catch (\Exception $e) {
+
+				echo $e->getMessage() . " (" . $e->getFile() . ", " . $e->getLine() . ")\n";
+			}
+
+			$subdir = $first_simbol . '/';
+		}
+
+		return $subdir;
+	}
+
 }

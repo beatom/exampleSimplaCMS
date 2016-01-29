@@ -33,13 +33,16 @@ class IndexView extends View
 	function fetch()
 	{
 		// Содержимое корзины
-		$this->design->assign('cart',		$this->cart->get_cart());
+		$this->design->assign('cart',		$this->cart->cache()->get_cart());
 	
         // Категории товаров
-		$this->design->assign('categories', $this->categories->get_categories_tree());
+		$this->design->assign('categories', $this->categories->cache()->get_categories_tree([
+			'not_empty' => true,
+			'visible' => true,
+		]));
 		
 		// Страницы
-		$pages = $this->pages->get_pages(array('visible'=>1));		
+		$pages = $this->pages->cache()->get_pages(array('visible'=>1));
 		$this->design->assign('pages', $pages);
 							
 		// Текущий модуль (для отображения центрального блока)
@@ -65,9 +68,14 @@ class IndexView extends View
 		if (!$content = $this->main->fetch())
 		{
 			return false;
-		}		
+		}
 
-		// Передаем основной блок в шаблон
+        $slider = $this->design->fetch('slider.tpl');
+
+        // Передаем основной блок в шаблон
+        $this->design->assign('slider', $slider);
+
+        // Передаем основной блок в шаблон
 		$this->design->assign('content', $content);		
 		
 		// Передаем название модуля в шаблон, это может пригодиться

@@ -116,42 +116,61 @@ class Money extends Simpla
 			$this->db->query($query);
 		}
 		$this->init_currencies();		
-	}	
-	
-	
-	public function convert($price, $currency_id = null, $format = true)
-	{
-		if(isset($currency_id))
-		{
-			if(is_numeric($currency_id))
-				$currency = $this->get_currency((integer)$currency_id);
-			else
-				$currency = $this->get_currency((string)$currency_id);
-		}
-		elseif(isset($_SESSION['currency_id']))
-			$currency = $this->get_currency($_SESSION['currency_id']);
-		else
-			$currency = current($this->get_currencies(array('enabled'=>1)));
-								
-		$result = $price;
-		
-		if(!empty($currency))
-		{		
-			// Умножим на курс валюты
-			$result = $result*$currency->rate_from/$currency->rate_to;
-			
-			// Точность отображения, знаков после запятой
-			$precision = isset($currency->cents)?$currency->cents:2;
-		}
-		
-		// Форматирование цены
-		if($format)
-			$result = number_format($result, $precision, $this->settings->decimals_point, $this->settings->thousands_separator);
-		else
-			$result = round($result, $precision);
-
-		return $result;
 	}
+
+
+    public function convert($price, $currency_id = null, $format = true)
+    {
+        if (isset($currency_id)) {
+            if (is_numeric($currency_id))
+                $currency = $this->get_currency((integer)$currency_id);
+            else
+                $currency = $this->get_currency((string)$currency_id);
+        } elseif (isset($_SESSION['currency_id']))
+            $currency = $this->get_currency($_SESSION['currency_id']);
+        else
+            $currency = current($this->get_currencies(array('enabled' => 1)));
+
+        $result = $price;
+
+        if (!empty($currency)) {
+            // Умножим на курс валюты
+            $result = $result * $currency->rate_from / $currency->rate_to;
+
+            // Точность отображения, знаков после запятой
+            $precision = isset($currency->cents) ? $currency->cents : 2;
+        }
+
+        // Форматирование цены
+        if ($format)
+            $result = number_format($result, $precision, $this->settings->decimals_point, $this->settings->thousands_separator);
+        else
+            $result = round($result, $precision);
+
+        return $result;
+    }
+
+    public function reconvert($price, $currency_id = null, $format = true)
+    {
+        if (isset($currency_id)) {
+            if (is_numeric($currency_id))
+                $currency = $this->get_currency((integer)$currency_id);
+            else
+                $currency = $this->get_currency((string)$currency_id);
+        } elseif (isset($_SESSION['currency_id']))
+            $currency = $this->get_currency($_SESSION['currency_id']);
+        else
+            $currency = current($this->get_currencies(array('enabled' => 1)));
+
+        $result = $price;
+
+        if (!empty($currency)) {
+            // Умножим на курс валюты
+            $result = $result * $currency->rate_to / $currency->rate_from;
+        }
+
+        return $result;
+    }
 
 	
 }

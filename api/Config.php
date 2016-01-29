@@ -43,12 +43,12 @@ class Config
 		$subdir = trim(substr($script_dir1, strlen($script_dir2)), "/\\");
 
 		// Протокол
-		$protocol = strtolower(substr($_SERVER["SERVER_PROTOCOL"],0,5))=='https'? 'https' : 'http';
-		if($_SERVER["SERVER_PORT"] == 443)
+		$protocol = !empty($_SERVER["SERVER_PROTOCOL"]) && strtolower(substr($_SERVER["SERVER_PROTOCOL"],0,5))=='https'? 'https' : 'http';
+		if(!empty($_SERVER["SERVER_PORT"]) && $_SERVER["SERVER_PORT"] == 443)
 			$protocol = 'https';
 
 		$this->vars['protocol'] = $protocol;		
-		$this->vars['root_url'] = $protocol.'://'.rtrim($_SERVER['HTTP_HOST']);
+		$this->vars['root_url'] = $protocol.'://'. (!empty($_SERVER['HTTP_HOST']) ? rtrim($_SERVER['HTTP_HOST']) : '');
 		if(!empty($subdir))
 			$this->vars['root_url'] .= '/'.$subdir;
 

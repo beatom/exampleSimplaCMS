@@ -27,7 +27,7 @@ class Pages extends Simpla
 		else
 			$where = $this->db->placehold(' WHERE id=? ', intval($id));
 		
-		$query = "SELECT id, url, header, name, meta_title, meta_description, meta_keywords, body, menu_id, position, visible
+		$query = "SELECT id, url, header, name, meta_title, meta_description, meta_keywords, article_title, body, menu_id, position, visible
 		          FROM __pages $where LIMIT 1";
 
 		$this->db->query($query);

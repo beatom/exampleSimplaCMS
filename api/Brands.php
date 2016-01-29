@@ -23,12 +23,63 @@ class Brands extends Simpla
 	{
 		$brands = array();
 		$category_id_filter = '';
-		if(!empty($filter['category_id']))
+		$not_empty_filter = '';
+		$in_admin_filter = '';
+		$have_description_filter = '';
+
+		if(!empty($filter['category_id'])) {
+
 			$category_id_filter = $this->db->placehold('LEFT JOIN __products p ON p.brand_id=b.id LEFT JOIN __products_categories pc ON p.id = pc.product_id WHERE pc.category_id in(?@)', (array)$filter['category_id']);
+		}
+
+		if(!empty($filter['not_empty'])) {
+
+			if (!empty($category_id_filter)) {
+
+				$not_empty_filter = $this->db->placehold('AND (SELECT 1 FROM __products p WHERE p.brand_id=b.id LIMIT 1) > 0');
+			} else {
+
+				$not_empty_filter = $this->db->placehold('WHERE (SELECT 1 FROM __products p WHERE p.brand_id=b.id LIMIT 1) > 0');
+			}
+		}
+
+
+		if(!empty($filter['in_admin'])) {
+
+			$in_admin_filter = $this->db->placehold('b.is_popular DESC,');
+		}
+
+		if(!empty($filter['have_description'])) {
+
+			$have_description_filter = $this->db->placehold('b.description DESC,');
+		}
+
+		// Выбираем все бренды
+		$query = $this->db->placehold("SELECT DISTINCT b.id,
+														b.name, b.url, b.meta_title, b.meta_keywords, b.meta_description, b.description, b.image, b.is_popular
+								 		FROM __brands b $category_id_filter $not_empty_filter ORDER BY $in_admin_filter $have_description_filter b.name");
+
+		$this->db->query($query);
+
+		return $this->db->results();
+	}
+
+    /*
+	*
+	* Функция возвращает массив брендов, удовлетворяющих фильтру
+	* @param $filter
+	*
+	*/
+	public function get_popular_brands($filter = array())
+	{
+		$brands = array();
+		$category_id_filter = '';
+		if(!empty($filter['category_id']))
+			$category_id_filter = $this->db->placehold('LEFT JOIN __products p ON p.brand_id=b.id LEFT JOIN __products_categories pc ON p.id = pc.product_id WHERE pc.category_id in(?@) ORDER BY b.count_views DESC LIMIT 16', (array)$filter['category_id']);
 
 		// Выбираем все бренды
 		$query = $this->db->placehold("SELECT DISTINCT b.id, b.name, b.url, b.meta_title, b.meta_keywords, b.meta_description, b.description, b.image
-								 		FROM __brands b $category_id_filter ORDER BY b.name");
+								 		FROM __brands b $category_id_filter ORDER BY b.is_popular DESC, b.count_views DESC LIMIT 16");
 		$this->db->query($query);
 
 		return $this->db->results();
@@ -47,7 +98,7 @@ class Brands extends Simpla
 			$filter = $this->db->placehold('id = ?', $id);
 		else
 			$filter = $this->db->placehold('url = ?', $id);
-		$query = "SELECT id, name, url, meta_title, meta_keywords, meta_description, description, image
+		$query = "SELECT id, name, url, meta_title, meta_keywords, meta_description, article_title, description, image, count_views, is_popular
 								 FROM __brands WHERE $filter ORDER BY name LIMIT 1";
 		$this->db->query($query);
 		return $this->db->result();
@@ -67,6 +118,11 @@ class Brands extends Simpla
 			$brand['url'] = preg_replace("/[\s]+/ui", '_', $brand['name']);
 			$brand['url'] = strtolower(preg_replace("/[^0-9a-zа-я_]+/ui", '', $brand['url']));
 		}
+
+		if(empty($brand['template']))
+		{
+			$brand['template'] = strtolower(preg_replace("/[^\d|\w]/ui", '', $brand['name']));
+		}
 	
 		$this->db->query("INSERT INTO __brands SET ?%", $brand);
 		return $this->db->insert_id();
@@ -80,6 +136,9 @@ class Brands extends Simpla
 	*/		
 	public function update_brand($id, $brand)
 	{
+		$brand = (array)$brand;
+        //$brand['template'] = strtolower(preg_replace("/[^\d|\w]/ui", '', $brand['name']));
+
 		$query = $this->db->placehold("UPDATE __brands SET ?% WHERE id=? LIMIT 1", $brand, intval($id));
 		$this->db->query($query);
 		return $id;

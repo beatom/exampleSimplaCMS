@@ -22,7 +22,7 @@ class Settings extends Simpla
 		parent::__construct();
 		
 		// Выбираем из базы настройки
-		$this->db->query('SELECT name, value FROM __settings');
+		$this->db->cache()->query('SELECT name, value FROM __settings');
 
 		// и записываем их в переменную		
 		foreach($this->db->results() as $result)

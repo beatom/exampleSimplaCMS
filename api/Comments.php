@@ -14,6 +14,16 @@ require_once('Simpla.php');
 class Comments extends Simpla
 {
 
+    public $found_rows;
+
+    public function getFoundRows(){
+
+        $this->db->query("SELECT FOUND_ROWS()");
+        $this->found_rows = $this->db->result('FOUND_ROWS()');
+
+        return $this->found_rows;
+    }
+
 	// Возвращает комментарий по id
 	public function get_comment($id)
 	{
@@ -68,9 +78,24 @@ class Comments extends Simpla
 			
 		$sort='DESC';
 		
-		$query = $this->db->placehold("SELECT c.id, c.object_id, c.ip, c.name, c.text, c.type, c.date, c.approved
-										FROM __comments c WHERE 1 $object_id_filter $type_filter $keyword_filter $approved_filter ORDER BY id $sort $sql_limit");
-	
+		$query = $this->db->placehold("SELECT
+                                          SQL_CALC_FOUND_ROWS (c.id),
+                                          c.object_id,
+                                          c.ip,
+                                          c.text,
+                                          c.type,
+                                          c.date,
+                                          c.approved,
+                                          c.positive,
+                                          c.negative,
+                                          c.recommend,
+                                          c.count_positive,
+                                          c.count_negative,
+                                          c.name
+										FROM __comments c
+										WHERE 1 $object_id_filter $type_filter $keyword_filter $approved_filter
+										ORDER BY id $sort $sql_limit");
+
 		$this->db->query($query);
 		return $this->db->results();
 	}
@@ -106,6 +131,20 @@ class Comments extends Simpla
 		return $this->db->result('count');
 
 	}
+
+	// Количество комментариев, по списку ид товаров
+	public function count_comments_ids($ids)
+	{
+
+		$query = $this->db->placehold("SELECT c.object_id, count(distinct c.id) as count
+										FROM __comments c
+										WHERE c.object_id in(?@)
+										GROUP BY c.object_id", $ids);
+
+		$this->db->query($query);
+		return $this->db->results();
+
+	}
 	
 	// Добавление комментария
 	public function add_comment($comment)
@@ -120,6 +159,44 @@ class Comments extends Simpla
 
 		$id = $this->db->insert_id();
 		return $id;
+	}
+
+	// Одобрение комментария
+	public function add_comments_vote($id, $user_id, $type = 'positive')
+	{
+
+		$query = $this->db->placehold('SELECT id FROM __comments_vote WHERE user_id=? AND comment_id=?', $user_id, $id);
+
+        $this->db->query($query);
+
+		if($this->db->results())
+			return false;
+
+        $query = $this->db->placehold('INSERT INTO __comments_vote
+		SET ?%,
+		date = NOW()', array(
+                'user_id' => $user_id,
+                'comment_id' => $id,
+                'vote_type' => $type,
+            ));
+
+        if(!$this->db->query($query))
+            return false;
+
+		return true;
+	}
+
+	// Одобрение количество голосов
+	public function count_comment_votes($id, $type = 'positive')
+	{
+
+		$query = $this->db->placehold('SELECT count(id) as count
+		                               FROM __comments_vote
+		                               WHERE comment_id=? AND vote_type=?', $id, $type);
+
+        $this->db->query($query);
+
+		return $this->db->result('count');
 	}
 	
 	// Изменение комментария

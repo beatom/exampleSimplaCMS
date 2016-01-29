@@ -15,6 +15,8 @@ class Database extends Simpla
 {
 	private $mysqli;
 	private $res;
+    private $_cache = false;
+    private $_q;
 
 	/**
 	 * В конструкторе подключаем базу
@@ -74,19 +76,59 @@ class Database extends Simpla
 		else
 			return false;
 	}
-	
 
-	/**
+    /*
+     * Use cache
+     *
+     */
+    public function cache() {
+
+        $this->_cache = true;
+
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isCache()
+    {
+        return $this->_cache;
+    }
+
+    /**
+     * @param boolean $cache
+     */
+    public function setCache($cache)
+    {
+        $this->_cache = $cache;
+    }
+
+    /**
 	 * Запрос к базе. Обазятелен первый аргумент - текст запроса.
 	 * При указании других аргументов автоматически выполняется placehold() для запроса с подстановкой этих аргументов
 	 */
 	public function query()
 	{
-		if(is_object($this->res))
-			$this->res->free();
+		if (!$this->_cache) {
+
+			if(is_object($this->res)) {
+
+				$this->res->free();
+			}
+		}
 			
 		$args = func_get_args();
-		$q = call_user_func_array(array($this, 'placehold'), $args);		
+		$q = call_user_func_array(array($this, 'placehold'), $args);
+
+        if ($this->_cache) {
+
+            $this->_cache = false;
+            $this->_q = $q;
+
+            return true;
+        }
+
  		return $this->res = $this->mysqli->query($q);
 	}
 	
@@ -130,23 +172,45 @@ class Database extends Simpla
 	 */
 	public function results($field = null)
 	{
+
+        if (!empty($this->_q)) {
+			$content = $this->cache->load('sql', $this->_q);
+
+            if ($content !== FALSE || is_array($content) || is_object($content)) {
+                $this->_q = null;
+                return $content;
+            }
+
+			$this->query($this->_q);
+        }
+
 		$results = array();
 		if(!$this->res)
 		{
-			trigger_error($this->mysqli->error, E_USER_WARNING); 
-			return false;
-		}
+			trigger_error($this->mysqli->error, E_USER_WARNING);
 
-		if($this->res->num_rows == 0)
-			return array();
+            $results = false;
+		} elseif($this->res->num_rows == 0) {
 
-		while($row = $this->res->fetch_object())
-		{
-			if(!empty($field) && isset($row->$field))
-				array_push($results, $row->$field);				
-			else
-				array_push($results, $row);
-		}
+            $results = array();
+        } else {
+
+            while($row = $this->res->fetch_object())
+            {
+                if(!empty($field) && isset($row->$field))
+                    array_push($results, $row->$field);
+                else
+                    array_push($results, $row);
+            }
+        }
+
+
+        if (!empty($this->_q)) {
+
+            $this->cache->save('sql', $this->_q, $results);
+            $this->_q = null;
+        }
+
 		return $results;
 	}
 
@@ -155,6 +219,18 @@ class Database extends Simpla
 	 */
 	public function result($field = null)
 	{
+
+        if (!empty($this->_q)) {
+			$content = $this->cache->load('sql', $this->_q);
+
+			if ($content !== FALSE || is_array($content) || is_object($content)) {
+                $this->_q = null;
+                return $content;
+            }
+
+            $this->query($this->_q);
+        }
+
 		$result = array();
 		if(!$this->res)
 		{
@@ -163,11 +239,18 @@ class Database extends Simpla
 		}
 		$row = $this->res->fetch_object();
 		if(!empty($field) && isset($row->$field))
-			return $row->$field;
+            $return = $row->$field;
 		elseif(!empty($field) && !isset($row->$field))
-			return false;
+            $return = false;
 		else
-			return $row;
+            $return = $row;
+
+        if (!empty($this->_q)) {
+            $this->cache->save('sql', $this->_q, $return);
+            $this->_q = null;
+        }
+
+        return $return;
 	}
 
 	/**

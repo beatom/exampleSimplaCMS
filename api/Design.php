@@ -41,14 +41,20 @@ class Design extends Simpla
 						
 		$this->smarty->cache_dir = 'cache';
 				
-		$this->smarty->registerPlugin('modifier', 'resize', array($this, 'resize_modifier'));		
+		$this->smarty->registerPlugin('modifier', 'original', array($this, 'original_modifier'));
+		$this->smarty->registerPlugin('modifier', 'resize', array($this, 'resize_modifier'));
+		$this->smarty->registerPlugin('modifier', 'resize_avatar', array($this, 'resize_avatar_modifier'));
+		$this->smarty->registerPlugin('modifier', 'resize_shop', array($this, 'resize_shop_modifier'));
+		$this->smarty->registerPlugin('modifier', 'resize_color', array($this, 'resize_color_modifier'));
 		$this->smarty->registerPlugin('modifier', 'token', array($this, 'token_modifier'));
 		$this->smarty->registerPlugin('modifier', 'plural', array($this, 'plural_modifier'));		
 		$this->smarty->registerPlugin('function', 'url', array($this, 'url_modifier'));		
 		$this->smarty->registerPlugin('modifier', 'first', array($this, 'first_modifier'));		
 		$this->smarty->registerPlugin('modifier', 'cut', array($this, 'cut_modifier'));		
 		$this->smarty->registerPlugin('modifier', 'date', array($this, 'date_modifier'));		
-		$this->smarty->registerPlugin('modifier', 'time', array($this, 'time_modifier'));		
+		$this->smarty->registerPlugin('modifier', 'date_fool', array($this, 'date_fool'));
+		$this->smarty->registerPlugin('modifier', 'time', array($this, 'time_modifier'));
+		$this->smarty->registerPlugin('modifier', 'ucfisrt', array($this, 'ucfisrt_modifier'));
 
 		if($this->config->smarty_html_minify)
 			$this->smarty->loadFilter('output', 'trimwhitespace');
@@ -197,20 +203,93 @@ class Design extends Simpla
 		
 		if(!empty($agents[substr($_SERVER['HTTP_USER_AGENT'], 0, 4)]))
 	    	return true;
-	}	
+	}
 
+    public function ucfisrt_modifier($string)
+	{
 
-	public function resize_modifier($filename, $width=0, $height=0, $set_watermark=false)
+		return mb_strtoupper(mb_substr($string, 0, 1)) . mb_substr($string, 1);
+//		return ucfirst($string);
+	}
+
+	public function original_modifier($filename)
+    {
+
+        if(substr($filename, 0, 7) == 'http://') {
+
+            // Имя оригинального файла
+            if(!$filename = $this->image->download_image($filename)) {
+
+                return false;
+            }
+        }
+
+        return $filename;
+    }
+
+    public function resize_modifier($filename, $width=0, $height=0, $set_watermark=false)
+    {
+        $resized_filename = $this->image->add_resize_params($filename, $width, $height, $set_watermark);
+        $resized_filename_encoded = $resized_filename;
+
+        if(substr($resized_filename_encoded, 0, 7) == 'http://')
+            $resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+        $resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+        return $this->config->root_url.'/'.$this->config->resized_images_dir.$resized_filename_encoded.'?'.$this->config->token($resized_filename);
+    }
+
+    public function resize_rel_modifier($filename, $width=0, $height=0, $set_watermark=false)
+    {
+        $resized_filename = $this->image->add_resize_params($filename, $width, $height, $set_watermark);
+        $resized_filename_encoded = $resized_filename;
+
+        if(substr($resized_filename_encoded, 0, 7) == 'http://')
+            $resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+        $resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+        return $resized_filename_encoded;
+    }
+
+	public function resize_avatar_modifier($filename, $width=0, $height=0, $set_watermark=false)
 	{
 		$resized_filename = $this->image->add_resize_params($filename, $width, $height, $set_watermark);
 		$resized_filename_encoded = $resized_filename;
-		
+
 		if(substr($resized_filename_encoded, 0, 7) == 'http://')
 			$resized_filename_encoded = rawurlencode($resized_filename_encoded);
 
 		$resized_filename_encoded = rawurlencode($resized_filename_encoded);
 
-		return $this->config->root_url.'/'.$this->config->resized_images_dir.$resized_filename_encoded.'?'.$this->config->token($resized_filename);
+		return $this->config->root_url.'/'.$this->config->avatar_resized.$resized_filename_encoded.'?'.$this->config->token($resized_filename);
+	}
+
+	public function resize_shop_modifier($filename, $width=0, $height=0, $set_watermark=false)
+	{
+		$resized_filename = $this->image->add_resize_params($filename, $width, $height, $set_watermark);
+		$resized_filename_encoded = $resized_filename;
+
+		if(substr($resized_filename_encoded, 0, 7) == 'http://')
+			$resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+		$resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+		return $this->config->root_url.'/'.$this->config->shop_resized_images_dir.$resized_filename_encoded.'?'.$this->config->token($resized_filename);
+	}
+
+	public function resize_color_modifier($filename, $width=0, $height=0, $set_watermark=false)
+	{
+		$resized_filename = $this->image->add_resize_params($filename, $width, $height, $set_watermark);
+		$resized_filename_encoded = $resized_filename;
+
+		if(substr($resized_filename_encoded, 0, 7) == 'http://')
+			$resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+		$resized_filename_encoded = rawurlencode($resized_filename_encoded);
+
+		return $this->config->root_url.'/'.$this->config->color_resized_images_dir.$resized_filename_encoded.'?'.$this->config->token($resized_filename);
 	}
 
 	public function token_modifier($text)
@@ -271,6 +350,32 @@ class Design extends Simpla
 		if(empty($date))
 			$date = date("Y-m-d");
 	    return date(empty($format)?$this->settings->date_format:$format, strtotime($date));
+	}
+
+	public function date_fool($date)
+	{
+		if(empty($date)) {
+            $date = date("Y-m-d");
+        }
+
+        $month = array(
+            "January" => "января",
+            "February" => "февраля",
+            "March" => "марта",
+            "April" => "апреля",
+            "May" => "мая",
+            "June" => "июня",
+            "July" => "июля",
+            "August" => "августа",
+            "September" => "сентября",
+            "October" => "октября",
+            "November" => "ноября",
+            "December" => "декабря",
+        );
+
+        $date_fool = date('d F', strtotime($date));
+
+        return str_replace(array_keys($month), array_values($month), $date_fool);
 	}
 	
 	public function time_modifier($date, $format = null)

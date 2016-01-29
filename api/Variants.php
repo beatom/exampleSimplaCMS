@@ -36,7 +36,7 @@ class Variants extends Simpla
 		if(!$product_id_filter && !$variant_id_filter)
 			return array();
 		
-		$query = $this->db->placehold("SELECT v.id, v.product_id , v.price, NULLIF(v.compare_price, 0) as compare_price, v.sku, IFNULL(v.stock, ?) as stock, (v.stock IS NULL) as infinity, v.name, v.attachment, v.position
+		$query = $this->db->placehold("SELECT v.id, v.product_id , v.price, NULLIF(v.compare_price, 0) as compare_price, NULLIF(v.discount_percent, 0) as discount_percent, v.sku, IFNULL(v.stock, ?) as stock, (v.stock IS NULL) as infinity, v.name, v.attachment, v.position, v.is_sale
 					FROM __variants AS v
 					WHERE 
 					1
@@ -45,7 +45,7 @@ class Variants extends Simpla
 					ORDER BY v.position       
 					", $this->settings->max_order_amount);
 		
-		$this->db->query($query);	
+		$this->db->query($query);
 		return $this->db->results();
 	}
 	
@@ -55,7 +55,7 @@ class Variants extends Simpla
 		if(empty($id))
 			return false;
 			
-		$query = $this->db->placehold("SELECT v.id, v.product_id , v.price, NULLIF(v.compare_price, 0) as compare_price, v.sku, IFNULL(v.stock, ?) as stock, (v.stock IS NULL) as infinity, v.name, v.attachment
+		$query = $this->db->placehold("SELECT v.id, v.product_id , v.price, NULLIF(v.compare_price, 0) as compare_price, NULLIF(v.discount_percent, 0) as discount_percent, v.sku, IFNULL(v.stock, ?) as stock, (v.stock IS NULL) as infinity, v.name, v.attachment, v.is_sale
 					FROM __variants v WHERE id=?
 					LIMIT 1", $this->settings->max_order_amount, $id);
 		
@@ -101,5 +101,15 @@ class Variants extends Simpla
 			@unlink($this->config->root_dir.'/'.$this->config->downloads_dir.$filename);
 		$this->update_variant($id, array('attachment'=>null));
 	}
-	
+
+    public function processVariant($variant) {
+
+        if (!empty($variant->compare_price) && !empty($variant->price) && empty($variant->discount_percent)) {
+
+            $variant->discount_percent = (1 - $variant->price / $variant->compare_price) * 100;
+            $variant->is_sale = 1;
+        }
+
+        return $variant;
+    }
 }
